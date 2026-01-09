@@ -38,6 +38,13 @@ $selectedpaint = 0;
 if(Path(2) != 'default') {$selectedpaint = Path(2);}
 
 $type = GetWeaponType(Path(1));
+if($type === 'knifes' && $selectedpaint === 0) {
+    $query = $pdo->prepare("DELETE FROM `wp_player_knife` WHERE `steamid` = ?");
+    $query->execute([$_SESSION['steamid']]);
+
+    $selectedpaint = 'default';
+}
+
 if($type == 'gloves') {
     if(Path(2) == 'default') {
         $selectedpaint = 'default';
@@ -100,10 +107,10 @@ switch($type) {
         $savedgloves = $query->fetchAll();
         
         foreach($savedgloves as $saved) {
-            if($saved['weapon_team'] == 1) {
+            if($saved['weapon_team'] == 2) {
                 $temp_t = $saved;
             }
-            if($saved['weapon_team'] == 2) {
+            if($saved['weapon_team'] == 3) {
                 $temp_ct = $saved;
             }
         }
@@ -113,10 +120,10 @@ switch($type) {
         $savedskins = $query->fetchAll();
         
         foreach($savedskins as $saved) {
-            if($saved['weapon_paint_id'] == $selectedpaint && $saved['weapon_team'] == 1) {
+            if($saved['weapon_paint_id'] == $selectedpaint && $saved['weapon_team'] == 2) {
                 $saved_t = $saved;
             }
-            if($saved['weapon_paint_id'] == $selectedpaint && $saved['weapon_team'] == 2) {
+            if($saved['weapon_paint_id'] == $selectedpaint && $saved['weapon_team'] == 3) {
                 $saved_ct = $saved;
             }
         }
@@ -212,13 +219,13 @@ switch($type) {
         if($player_skins) {
             foreach($player_skins as $skin) {
                 if(!in_array($current->weapon_name, $ct_only)) {
-                    if($skin['weapon_team'] == 0 || $skin['weapon_team'] == 1) {
+                    if($skin['weapon_team'] == 0 || $skin['weapon_team'] == 2) {
                         $saved_t = $skin;
                         $weapon['t'] = true;
                     }
                 }
                 if(!in_array($current->weapon_name, $t_only)) {
-                    if($skin['weapon_team'] == 0 || $skin['weapon_team'] == 2) {
+                    if($skin['weapon_team'] == 0 || $skin['weapon_team'] == 3) {
                         $saved_ct = $skin;
                         $weapon['ct'] = true;
                     }
@@ -294,6 +301,12 @@ if($stickers_loop) {
         }
     }
 }
+
+function urlexists($url){
+   $headers = get_headers($url);
+   return stripos($headers[0], "200 OK") ? true:false;
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -318,15 +331,18 @@ if($stickers_loop) {
         let usethreejs = <?= $Website_UseThreejs?"true":"false"; ?>;
         let modelpath = false;texturepath = false,legacy = <?= empty($current->legacy_model) ? "false": $current->legacy_model; ?>;
         <?php
-        if($Website_UseThreejs && isset($current->threejsmodel)) {
+        if($Website_UseThreejs && urlexists('https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/%5Bmodels%5D/'.($weapon['weapon_name'] ?? $weapon['index']).'.glb')) {
+            if(urlexists('https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/%5Btextures%5D/'.($weapon['weapon_name'] ?? $weapon['index']).'/'.$weapon['paint'].'.png')) {
         ?>
-        modelpath = "<?= $current->threejsmodel; ?>";
+        modelpath = "<?= 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/%5Bmodels%5D/'.($weapon['weapon_name'] ?? $weapon['index']).'.glb'; ?>";
+        texturepath = ["<?= 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/%5Btextures%5D/'.($weapon['weapon_name'] ?? $weapon['index']).'/'.$weapon['paint'].'.png'; ?>", "<?= 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/%5Btextures%5D/'.($weapon['weapon_name'] ?? $weapon['index']).'/'.$weapon['paint'].'_metal.png'; ?>"];
         <?php
-        }
-        if($Website_UseThreejs && isset($current->texture) && isset($current->texture_metal)) {
+            }else if(urlexists('https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/%5Btextures%5D/'.($weapon['weapon_name'] ?? $weapon['index']).'/'.$weapon['paint'].'.webp')) {
         ?>
-        texturepath = ["<?= $current->texture; ?>", "<?= $current->texture_metal; ?>"];
+        modelpath = "<?= 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/%5Bmodels%5D/'.($weapon['weapon_name'] ?? $weapon['index']).'.glb'; ?>";
+        texturepath = ["<?= 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/%5Btextures%5D/'.($weapon['weapon_name'] ?? $weapon['index']).'/'.$weapon['paint'].'.webp'; ?>", "<?= 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/%5Btextures%5D/'.($weapon['weapon_name'] ?? $weapon['index']).'/'.$weapon['paint'].'_metal.webp'; ?>"];
         <?php
+            }
         }
         ?>
         const Prefix = "<?= GetPrefix(); ?>";
@@ -515,4 +531,3 @@ if($stickers_loop) {
             </button>
         </div>
     </div>
-</footer>

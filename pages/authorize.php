@@ -14,38 +14,36 @@ if(isset($_SESSION['steamid'])) {
     exit;
 }
 
-require_once 'imports/openid.php';
+if(!empty($_GET['openid_claimed_id'])) {
+    $arr = explode('/', $_GET['openid_claimed_id']);
+    $steamid = $arr[count($arr)-1];
+
+    $_SESSION['steamid'] = $steamid;
+    header('Location: '.GetPrefix().'skins');
+    exit;
+}
 
 try {
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+
     $url = $_SERVER['SERVER_NAME'];
-    if(isset($_SERVER['HTTPS'])) {
-        $url = "https://".$_SERVER['SERVER_NAME'];
-    }else if(!isset($_SERVER['HTTPS']) && $_SERVER['SERVER_PORT'] != 80) {
-        $url = "http://".$_SERVER['SERVER_NAME'].':'.$_SERVER['SERVER_PORT'];
-    }
-    
-    $openid = new LightOpenID($url);
-    
-    if(!$openid->mode) {
-        $openid->identity = 'https://steamcommunity.com/openid';
-        header('Location: ' . $openid->authUrl());
-    }else if($openid->mode == 'cancel') {
-        header('Location: '.GetPrefix());
-    }else {
-        if($openid->validate()) {
-            $url = explode('/', $openid->identity);
-            $id = $url[count($url)-1];
-            
-            if(!isset($id) || empty($id)) {
-                echo 'error with steam id 64, contact support.';
-                exit;
-            }
-            
-            $_SESSION['steamid'] = $id;
-        }
-    
-        header('Location: '.GetPrefix());
-    }
+    $protocol = $isHttps ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'].GetPrefix();
+
+    $realm     = $protocol . '://' . $host;
+    $return_to = $realm . 'authorize';
+
+    $params = [
+        'openid.ns'         => 'http://specs.openid.net/auth/2.0',
+        'openid.mode'       => 'checkid_setup',
+        'openid.return_to'  => $return_to,
+        'openid.realm'      => $realm,
+        'openid.identity'   => 'http://specs.openid.net/auth/2.0/identifier_select',
+        'openid.claimed_id' => 'http://specs.openid.net/auth/2.0/identifier_select'
+    ];
+
+    header('Location: https://steamcommunity.com/openid/login?' . http_build_query($params));
 }catch(Exception $exception) {
     $documentError_Code = $exception->getCode();
     $documentError_Message = $exception->getMessage();

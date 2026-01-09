@@ -16,7 +16,13 @@
             {"name": "CS2.LIELXD.COM", "hover": "Connect to Surf Server", "link": "steam://connect/34.165.48.66:27016?appid=730"}
         ],
         "footer": "please login through steam to continue.",
-        "button": "Login with steam"
+        "button": "Login with steam",
+        "authorize": {
+            "label": "Login with steam64id",
+            "sublabel": "Could'nt sign in with steam, please enter steam64id",
+            "input": "SteamID",
+            "button": "Login with steam64id"
+        }
     },
     "skins": {
         "choose_weapon": "Choose your {{label}}",

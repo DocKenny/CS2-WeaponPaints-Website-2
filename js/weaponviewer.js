@@ -7,6 +7,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import WebGL from 'three/addons/capabilities/WebGL.js';
+import ProjectedMaterial from 'https://unpkg.com/three-projected-material/build/ProjectedMaterial.module.js'
 
 let scene, renderer, controls, camera;
 const canvasContainer = document.querySelector('#threejsArea');
@@ -24,6 +25,13 @@ if(usethreejs && WebGL.isWebGL2Available() && canvasContainer
             if(texturepath && texturepath[0] && texturepath[1]) {
                 await LoadTexture(texturepath[0], texturepath[1]);
             }
+
+            document.querySelectorAll('.stickers button').forEach(function(elem, index) {
+                if(elem.dataset.id) {
+                    let choosen = stickerslist.find(sticker => sticker.id == elem.dataset.id);
+                    ApplySticker(choosen.image, index);
+                }
+            });
             
             ToggleLoading(true);
         })();
@@ -49,6 +57,7 @@ fetch(Prefix+'src/data/keychains.json')
 
 let viewlistcurrent = false, viewlistpos = false, viewlistselected = false;
 const viewselect = document.querySelector('#viewselect');
+const mainbox = document.querySelector('.mainbox');
 document.addEventListener('click', async function(e) {
     if(e.target.tagName != 'BUTTON') {return;}
 
@@ -56,8 +65,6 @@ document.addEventListener('click', async function(e) {
     if(e.target.classList.contains('terror') ||
     e.target.classList.contains('counter-terror')) {
         ToggleLoading();
-
-        const mainbox = document.querySelector('.mainbox');
 
         const index = mainbox.dataset.index;
         if(!index) {return;}
@@ -187,6 +194,7 @@ document.addEventListener('click', async function(e) {
 
                 if(saved_t != false && saved_ct != false && currenttype != 'mvp' && currenttype != 'agents') {
                     document.querySelector('#preset').style.display = null;
+                    document.querySelector('#preset .terrormark').checked = true;
                 }
             }else if(team == 3) {
                 saved_ct = JSON.stringify({
@@ -263,6 +271,7 @@ document.addEventListener('click', async function(e) {
 
         setTimeout(() => {
             viewselect.querySelector('ul').innerHTML = '';
+            viewselect.querySelector('.input input').value = null;
         }, 300);
     }
 
@@ -279,10 +288,16 @@ document.addEventListener('click', async function(e) {
                     stickers.children[viewlistpos-1].dataset.id = id;
                     stickers.children[viewlistpos-1].title = choosen.name;
                     stickers.children[viewlistpos-1].innerHTML = `<img src="${choosen.image}">`;
+
+                    if(usethreejs) {
+                        ApplySticker(choosen.image, viewlistpos-1);
+                    }
                 }else {
                     stickers.children[viewlistpos-1].removeAttribute('data-id');
                     stickers.children[viewlistpos-1].removeAttribute('title');
                     stickers.children[viewlistpos-1].innerHTML = '+';
+
+                    ApplySticker(false, viewlistpos-1);
                 }
             }else if(viewlistcurrent === 'keychains') {
                 let keychains = document.querySelector('.addons .keychains');
@@ -307,6 +322,7 @@ document.addEventListener('click', async function(e) {
 
         setTimeout(() => {
             viewselect.querySelector('ul').innerHTML = '';
+            viewselect.querySelector('.input input').value = null;
         }, 300);
     }
 });
@@ -344,6 +360,7 @@ function InitScene() {
     controls.enableDamping = true;
     controls.maxDistance = 60;
     controls.rotateSpeed = 0.8;
+
     controls.enablePan = false;
 
     /////////////////
@@ -358,6 +375,7 @@ function InitScene() {
         texture.dispose();
         scene.environment = envMap;
     });
+
 }
 
 function animate() {
@@ -384,7 +402,6 @@ async function LoadModel(modelpath, legacy) {
     return new Promise((resolve, reject) => {
         new GLTFLoader().load(modelpath, function(weapon) {
             resolve(weapon);
-            scene.add(weapon.scene);
 
             if(currenttype != 'knifes' && currenttype != 'gloves' && !modelpath.includes('weapon_taser')) {
                 if(legacy == true) {
@@ -398,9 +415,15 @@ async function LoadModel(modelpath, legacy) {
             const center = box.getCenter(new THREE.Vector3());
             
             CenterMesh(weapon, center);
+
+            let pivot = new THREE.Group();
+            pivot.add(weapon.scene);
+            scene.add(pivot);
+
+            pivot.rotation.y = Math.PI;
         
             const size = box.getSize(new THREE.Vector3());
-            camera.position.set(0, 5, size.length() / -1.2);
+            camera.position.set(0, 5, -size.length() / -1.2);
             camera.lookAt(new THREE.Vector3(0,0,0));
             
             controls.minDistance = size.length() / 1.7;
@@ -487,6 +510,389 @@ async function LoadTexture(texturepath, texturepath_metal) {
             child.material.metalnessMap = texture_metal;
         }
     });
+    
+    return true;
+}
+
+
+const stickerspreview = [];
+const stickerProjectors = [];
+
+function getStickerTargetMesh(root) {
+  let best = null;
+  let bestScore = -Infinity;
+
+  root.traverse((obj) => {
+    if(!obj.isMesh) {return;}
+    if(!obj.geometry) {return;}
+    if(!obj.material) {return;}
+
+    const matName = (obj.material.name || '').toLowerCase();
+    if(matName.includes('scope') || matName.includes('bare_arm')) {return;}
+
+    obj.geometry.computeBoundingBox?.();
+    const bb = obj.geometry.boundingBox;
+    if(!bb) {return;}
+
+    const size = new THREE.Vector3();
+    bb.getSize(size);
+
+    const score = size.x * size.y + size.x * size.z + size.y * size.z;
+    if (score > bestScore) {
+      bestScore = score;
+      best = obj;
+    }
+  });
+
+  if(!best) {
+    root.traverse((obj) => {
+      if(best) {return;}
+      if(obj.isMesh && obj.geometry) {best = obj;}
+    });
+  }
+
+  return best;
+}
+
+async function ApplySticker(imgsrc = '', place = 0) {
+    if(!model) return false;
+
+    const mesh = getStickerTargetMesh(model.scene);
+    if(!mesh) return false;
+
+    if (!imgsrc) {
+        const overlay = stickerspreview[place];
+        if(overlay) {
+            overlay.parent.remove(overlay);
+            if(overlay.geometry) overlay.geometry.dispose();
+
+            const mat = overlay.material;
+            if(mat) {
+                if(mat.texture) {mat.texture.dispose();}
+                mat.dispose();
+            }
+
+            stickerspreview[place]   = null;
+            stickerProjectors[place] = null;
+        }
+
+        return true;
+    }
+
+    const loader = new THREE.TextureLoader();
+    const stickerTex = await loader.loadAsync(imgsrc);
+    stickerTex.encoding = THREE.sRGBEncoding;
+    stickerTex.colorSpace = THREE.SRGBColorSpace;
+
+    const box = new THREE.Box3().setFromObject(mesh);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+
+    const slotOffsets = {
+        // Pistols
+        'weapon_cz75a': [
+            {x: 0.12 * size.x, y: 0.35 * size.y, distance: size.z * 1.4},
+            {x: 0.35 * size.x, y: -0.1 * size.y, distance: size.z * 1.5},
+            {x: 0.28 * size.x, y: 0.3 * size.y, distance: size.z * 1.6},
+            {x: -0.07 * size.x, y: 0.335 * size.y, distance: size.z * 1.4},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_deagle': [
+            {x: 0.26 * size.x, y: -0.1 * size.y, distance: size.z * 1.4},
+            {x: 0.16 * size.x, y: 0.3 * size.y, distance: size.z * 1.4},
+            {x: 0.0 * size.x, y: 0.3 * size.y, distance: size.z * 1.4},
+            {x: -0.28 * size.x, y: 0.3 * size.y, distance: size.z * 1.4},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_elite': [
+            {x: -0.2 * size.x, y: 0.3 * size.y, distance: size.z * 1.1},
+            {x: 0, y: 0, distance: 0},
+            {x: 0, y: 0, distance: 0},
+            {x: 0, y: 0, distance: 0},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_fiveseven': [
+            {x: 0.23 * size.x, y: 0.26 * size.y, distance: size.z * 1.5},
+            {x: 0.0 * size.x, y: 0.31 * size.y, distance: size.z * 1.5},
+            {x: -0.28 * size.x, y: 0.3 * size.y, distance: size.z * 1.5},
+            {x: 0.3 * size.x, y: -0.1 * size.y, distance: size.z * 1.5},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_hkp2000': [
+            {x: 0.23 * size.x, y: 0.28 * size.y, distance: size.z * 1.3},
+            {x: -0.05 * size.x, y: 0.33 * size.y, distance: size.z * 1.3},
+            {x: -0.32 * size.x, y: 0.33 * size.y, distance: size.z * 1.3},
+            {x: 0.28 * size.x, y: -0.1 * size.y, distance: size.z * 1.3},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_p250': [
+            {x: 0.23 * size.x, y: 0.28 * size.y, distance: size.z * 1.3},
+            {x: -0.05 * size.x, y: 0.31 * size.y, distance: size.z * 1.3},
+            {x: -0.35 * size.x, y: 0.31 * size.y, distance: size.z * 1.3},
+            {x: 0.28 * size.x, y: -0.1 * size.y, distance: size.z * 1.3},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_taser': [
+            {x: 0.29 * size.x, y: 0.0 * size.y, distance: size.z * 1.1},
+            {x: -0.4 * size.x, y: 0.3 * size.y, distance: size.z * 1.25},
+            {x: 0.26 * size.x, y: 0.32 * size.y, distance: size.z * 1.2},
+            {x: 0.0 * size.x, y: 0.32 * size.y, distance: size.z * 1.2},
+            {x: -0.2 * size.x, y: 0.32 * size.y, distance: size.z * 1.2}
+        ],
+        'weapon_tec9': [
+            {x: 0.35 * size.x, y: 0.36 * size.y, distance: size.z * 0.9},
+            {x: 0.15 * size.x, y: 0.35 * size.y, distance: size.z * 0.9},
+            {x: -0.02 * size.x, y: 0.32 * size.y, distance: size.z * 0.9},
+            {x: 0, y: 0, distance: 0},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_usp_silencer': [
+            {x: 0.4 * size.x, y: 0.26 * size.y, distance: size.z * 1.3},
+            {x: 0.4 * size.x, y: -0.1 * size.y, distance: size.z * 1.2},
+            {x: 0.26 * size.x, y: 0.28 * size.y, distance: size.z * 1.2},
+            {x: 0.1 * size.x, y: 0.3 * size.y, distance: size.z * 1.2},
+            {x: -0.18 * size.x, y: 0.4 * size.y, distance: size.z * 1.2}
+        ],
+
+        // Rifles
+        'weapon_ak47': [
+            {x: 0.155 * size.x, y: 0.31 * size.y, distance: size.z},
+            {x: 0.065 * size.x, y: 0.3 * size.y, distance: size.z},
+            {x: -0.03 * size.x, y: 0.31 * size.y, distance: size.z},
+            {x: -0.165 * size.x, y: 0.335 * size.y, distance: size.z},
+            {x: 0.37 * size.x, y: 0.16 * size.y, distance: size.z}
+        ],
+        'weapon_aug': [
+            {x: 0.38 * size.x, y: 0.25 * size.y, distance: size.z * 0.6},
+            {x: 0.23 * size.x, y: 0.28 * size.y, distance: size.z * 0.6},
+            {x: 0.08 * size.x, y: 0.33 * size.y, distance: size.z * 0.6},
+            {x: -0.05 * size.x, y: 0.33 * size.y, distance: size.z * 0.6},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_famas': [
+            {x: -0.03 * size.x, y: 0.19 * size.y, distance: size.z},
+            {x: 0.15 * size.x, y: 0.17 * size.y, distance: size.z},
+            {x: 0.3 * size.x, y: 0.17 * size.y, distance: size.z},
+            {x: -0.12 * size.x, y: 0.17 * size.y, distance: size.z},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_galilar': [
+            {x: 0.155 * size.x, y: 0.31 * size.y, distance: size.z * 0.8},
+            {x: 0.065 * size.x, y: 0.3 * size.y, distance: size.z * 0.8},
+            {x: -0.1 * size.x, y: 0.31 * size.y, distance: size.z * 0.8},
+            {x: 0.39 * size.x, y: 0.19 * size.y, distance: size.z * 0.8},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_m4a1': [
+            {x: 0.0 * size.x, y: 0.2 * size.y, distance: size.z * 0.9},
+            {x: 0.33 * size.x, y: 0.2 * size.y, distance: size.z * 0.9},
+            {x: 0.1 * size.x, y: 0.1 * size.y, distance: size.z * 0.9},
+            {x: -0.04 * size.x, y: 0.05 * size.y, distance: size.z * 0.9},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_m4a1_silencer': [
+            {x: 0.21 * size.x, y: 0.18 * size.y, distance: size.z * 0.9},
+            {x: 0.09 * size.x, y: 0.05 * size.y, distance: size.z * 0.9},
+            {x: 0.15 * size.x, y: 0.15 * size.y, distance: size.z * 0.9},
+            {x: -0.01 * size.x, y: 0.22 * size.y, distance: size.z * 0.9},
+            {x: -0.35 * size.x, y: 0.22 * size.y, distance: size.z * 0.9}
+        ],
+        'weapon_sg556': [
+            {x: 0.22 * size.x, y: 0.12 * size.y, distance: size.z},
+            {x: 0.15 * size.x, y: 0.125 * size.y, distance: size.z},
+            {x: 0.05 * size.x, y: 0.13 * size.y, distance: size.z},
+            {x: 0.1 * size.x, y: 0.34 * size.y, distance: size.z * 0.9},
+            {x: 0, y: 0, distance: 0}
+        ],
+
+        // SMG
+        'weapon_bizon': [
+            {x: 0.08 * size.x, y: 0.25 * size.y, distance: size.z},
+            {x: -0.02 * size.x, y: 0.22 * size.y, distance: size.z},
+            {x: -0.12 * size.x, y: 0.25 * size.y, distance: size.z},
+            {x: -0.15 * size.x, y: 0.0 * size.y, distance: size.z},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_mac10': [
+            {x: 0.3 * size.x, y: 0.33 * size.y, distance: size.z * 1.2},
+            {x: 0.1 * size.x, y: 0.1 * size.y, distance: size.z * 1.2},
+            {x: 0.05 * size.x, y: 0.33 * size.y, distance: size.z * 1.2},
+            {x: -0.2 * size.x, y: 0.33 * size.y, distance: size.z * 1.2},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_mp5sd': [
+            {x: -0.14 * size.x, y: 0.26 * size.y, distance: size.z * 1.1},
+            {x: 0.04 * size.x, y: 0.26 * size.y, distance: size.z * 1.1},
+            {x: 0.14 * size.x, y: 0.26 * size.y, distance: size.z * 1.1},
+            {x: 0.24 * size.x, y: 0.26 * size.y, distance: size.z * 1.1},
+            {x: 0.32 * size.x, y: 0.26 * size.y, distance: size.z * 1.1}
+        ],
+        'weapon_mp7': [
+            {x: 0.27 * size.x, y: 0.23 * size.y, distance: size.z * 1.1},
+            {x: 0.13 * size.x, y: 0.2 * size.y, distance: size.z * 1.1},
+            {x: -0.05 * size.x, y: 0.24 * size.y, distance: size.z * 1.1},
+            {x: 0.14 * size.x, y: -0.05 * size.y, distance: size.z * 1.1},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_mp9': [
+            {x: -0.03 * size.x, y: 0.33 * size.y, distance: size.z * 1.3},
+            {x: -0.15 * size.x, y: 0.3 * size.y, distance: size.z * 1.3},
+            {x: -0.33 * size.x, y: 0.31 * size.y, distance: size.z * 1.3},
+            {x: -0.14 * size.x, y: 0.0 * size.y, distance: size.z * 1.3},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_p90': [
+            {x: 0.32 * size.x, y: 0.0 * size.y, distance: size.z * 1.3},
+            {x: 0.41 * size.x, y: -0.05 * size.y, distance: size.z * 1.3},
+            {x: -0.08 * size.x, y: 0.0 * size.y, distance: size.z * 1.3},
+            {x: -0.23 * size.x, y: 0.0 * size.y, distance: size.z * 1.3},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_ump45': [
+            {x: 0.1 * size.x, y: 0.3 * size.y, distance: size.z},
+            {x: 0.0 * size.x, y: 0.25 * size.y, distance: size.z},
+            {x: -0.1 * size.x, y: 0.27 * size.y, distance: size.z},
+            {x: -0.2 * size.x, y: 0.3 * size.y, distance: size.z},
+            {x: 0, y: 0, distance: 0}
+        ],
+        
+        // Machine Guns
+        'weapon_m249': [
+            {x: 0.2 * size.x, y: -0.1 * size.y, distance: size.z * 0.3},
+            {x: 0, y: 0, distance: 0},
+            {x: 0, y: 0, distance: 0},
+            {x: 0.09 * size.x, y: -0.12 * size.y, distance: size.z * 0.3},
+            {x: 0.15 * size.x, y: -0.16 * size.y, distance: size.z * 0.3}
+        ],
+        'weapon_negev': [
+            {x: 0.15 * size.x, y: 0.17 * size.y, distance: size.z * 0.43},
+            {x: 0.09 * size.x, y: 0.17 * size.y, distance: size.z * 0.43},
+            {x: -0.03 * size.x, y: -0.28 * size.y, distance: size.z * 0.6},
+            {x: -0.12 * size.x, y: 0.17 * size.y, distance: size.z * 0.43},
+            {x: 0, y: 0, distance: 0}
+        ],
+
+        // Snipers
+        'weapon_awp': [
+            {x: 0.36 * size.x, y: -0.08 * size.y, distance: size.z * 0.7},
+            {x: 0.182 * size.x, y: 0.0 * size.y, distance: size.z * 0.7},
+            {x: 0.12 * size.x, y: -0.03 * size.y, distance: size.z * 0.7},
+            {x: 0.06 * size.x, y: 0.35 * size.y, distance: size.z * 0.7},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_g3sg1': [
+            {x: 0.43 * size.x, y: -0.02 * size.y, distance: size.z * 0.5},
+            {x: 0.35 * size.x, y: 0.0 * size.y, distance: size.z * 0.5},
+            {x: 0.2 * size.x, y: 0.09 * size.y, distance: size.z * 0.5},
+            {x: 0.24 * size.x, y: 0.38 * size.y, distance: size.z * 0.5},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_scar20': [
+            {x: 0.26 * size.x, y: 0.04 * size.y, distance: size.z},
+            {x: 0.15 * size.x, y: -0.02 * size.y, distance: size.z},
+            {x: 0.085 * size.x, y: -0.1 * size.y, distance: size.z},
+            {x: 0.05 * size.x, y: 0.1 * size.y, distance: size.z},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_ssg08': [
+            {x: 0.18 * size.x, y: 0.23 * size.y, distance: size.z * 0.9},
+            {x: 0.09 * size.x, y: 0.28 * size.y, distance: size.z * 0.9},
+            {x: 0.04 * size.x, y: 0.2 * size.y, distance: size.z * 0.9},
+            {x: -0.01 * size.x, y: 0.33 * size.y, distance: size.z * 0.9},
+            {x: 0, y: 0, distance: 0}
+        ],
+
+        // Shotguns
+        'weapon_mag7': [
+            {x: 0.32 * size.x, y: 0.28 * size.y, distance: size.z * 1.1},
+            {x: 0.2 * size.x, y: 0.2 * size.y, distance: size.z * 1.1},
+            {x: 0.1 * size.x, y: 0.25 * size.y, distance: size.z * 1.1},
+            {x: 0.0 * size.x, y: 0.25 * size.y, distance: size.z * 1.1},
+            {x: 0.22 * size.x, y: -0.1 * size.y, distance: size.z * 1.1}
+        ],
+        'weapon_nova': [
+            {x: 0.32 * size.x, y: 0.03 * size.y, distance: size.z * 1.2},
+            {x: 0.13 * size.x, y: 0.25 * size.y, distance: size.z * 1.2},
+            {x: 0.04 * size.x, y: 0.25 * size.y, distance: size.z * 1.2},
+            {x: -0.03 * size.x, y: 0.25 * size.y, distance: size.z * 1.2},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_sawedoff': [
+            {x: 0.26 * size.x, y: 0.24 * size.y, distance: size.z * 1.4},
+            {x: 0.16 * size.x, y: 0.25 * size.y, distance: size.z * 1.4},
+            {x: 0.04 * size.x, y: 0.25 * size.y, distance: size.z * 1.4},
+            {x: -0.22 * size.x, y: 0.22 * size.y, distance: size.z * 1.4},
+            {x: 0, y: 0, distance: 0}
+        ],
+        'weapon_xm1014': [
+            {x: 0.12 * size.x, y: 0.23 * size.y, distance: size.z},
+            {x: 0.05 * size.x, y: 0.23 * size.y, distance: size.z},
+            {x: -0.03 * size.x, y: 0.23 * size.y, distance: size.z},
+            {x: -0.08 * size.x, y: 0.2 * size.y, distance: size.z},
+            {x: 0, y: 0, distance: 0}
+        ]
+    };
+    
+    let offset = new THREE.Vector3(0, 0, 0);
+    if(slotOffsets[mainbox.dataset.name] && slotOffsets[mainbox.dataset.name][place]) {
+        offset = slotOffsets[mainbox.dataset.name][place];
+    }
+
+    const surfacePoint = center.clone().add(new THREE.Vector3(offset.x, offset.y, 0));
+
+    let projector = stickerProjectors[place];
+    if (!projector) {
+        projector = new THREE.PerspectiveCamera(35, 1, 0.1, 10);
+
+        stickerProjectors[place] = projector;
+    }
+
+    const normalDir = new THREE.Vector3(0, 0, 1);
+    const distance = offset.distance;
+
+    const projPos = surfacePoint.clone().add(
+        normalDir.clone().multiplyScalar(distance)
+    );
+
+    projector.position.copy(projPos);
+    projector.lookAt(surfacePoint);
+    projector.updateProjectionMatrix();
+    projector.updateMatrixWorld(true);
+
+    if(stickerspreview[place]) {
+        const overlay = stickerspreview[place];
+        const mat = overlay.material;
+
+        mat.texture = stickerTex;
+        mat.camera = projector;
+        mat.textureScale = mat.textureScale;
+
+        mat.project(overlay);
+
+        return true;
+    }
+
+    const stickerMat = new ProjectedMaterial({
+        camera: projector,
+        texture: stickerTex,
+        textureScale: 2.7,
+        transparent: true,
+        opacity: 1,
+        backgroundOpacity: 0
+    });
+
+    const overlayMesh = mesh.clone();
+    overlayMesh.material = stickerMat;
+
+    mesh.parent.add(overlayMesh);
+
+    overlayMesh.position.copy(mesh.position);
+    overlayMesh.quaternion.copy(mesh.quaternion);
+    overlayMesh.scale.copy(mesh.scale);
+
+    overlayMesh.renderOrder = 10;
+    stickerMat.project(overlayMesh);
+    stickerspreview[place] = overlayMesh;
 
     return true;
 }
@@ -649,12 +1055,16 @@ marks.forEach(elem => {
                     stickerselem.children[0].removeAttribute('data-id');
                     stickerselem.children[0].removeAttribute('title');
                     stickerselem.children[0].innerHTML = `+`;
+
+                    ApplySticker(false, 0);
                 }else {
                     let stickerinfo = stickerslist.find(sticker => sticker.id == stickersaved[0]);
 
                     stickerselem.children[0].dataset.id = stickersaved[0];
                     stickerselem.children[0].title = stickerinfo.name;
                     stickerselem.children[0].innerHTML = `<img src="${stickerinfo.image}">`;
+
+                    ApplySticker(stickerinfo.image, 0);
                 }
             }
             if(current['weapon_sticker_1']) {
@@ -663,12 +1073,16 @@ marks.forEach(elem => {
                     stickerselem.children[1].removeAttribute('data-id');
                     stickerselem.children[1].removeAttribute('title');
                     stickerselem.children[1].innerHTML = `+`;
+
+                    ApplySticker(false, 1);
                 }else {
                     let stickerinfo = stickerslist.find(sticker => sticker.id == stickersaved[0]);
                     
                     stickerselem.children[1].dataset.id = stickersaved[0];
                     stickerselem.children[1].title = stickerinfo.name;
                     stickerselem.children[1].innerHTML = `<img src="${stickerinfo.image}">`;
+
+                    ApplySticker(stickerinfo.image, 1);
                 }
             }
             if(current['weapon_sticker_2']) {
@@ -677,12 +1091,16 @@ marks.forEach(elem => {
                     stickerselem.children[2].removeAttribute('data-id');
                     stickerselem.children[2].removeAttribute('title');
                     stickerselem.children[2].innerHTML = `+`;
+
+                    ApplySticker(false, 2);
                 }else {
                     let stickerinfo = stickerslist.find(sticker => sticker.id == stickersaved[0]);
 
                     stickerselem.children[2].dataset.id = stickersaved[0];
                     stickerselem.children[2].title = stickerinfo.name;
                     stickerselem.children[2].innerHTML = `<img src="${stickerinfo.image}">`;
+
+                    ApplySticker(stickerinfo.image, 2);
                 }
             }
             if(current['weapon_sticker_3']) {
@@ -691,12 +1109,16 @@ marks.forEach(elem => {
                     stickerselem.children[3].removeAttribute('data-id');
                     stickerselem.children[3].removeAttribute('title');
                     stickerselem.children[3].innerHTML = `+`;
+                
+                    ApplySticker(false, 3);
                 }else {
                     let stickerinfo = stickerslist.find(sticker => sticker.id == stickersaved[0]);
 
                     stickerselem.children[3].dataset.id = stickersaved[0];
                     stickerselem.children[3].title = stickerinfo.name;
                     stickerselem.children[3].innerHTML = `<img src="${stickerinfo.image}">`;
+                
+                    ApplySticker(stickerinfo.image, 3);
                 }
             }
             if(current['weapon_sticker_4']) {
@@ -705,12 +1127,16 @@ marks.forEach(elem => {
                     stickerselem.children[4].removeAttribute('data-id');
                     stickerselem.children[4].removeAttribute('title');
                     stickerselem.children[4].innerHTML = `+`;
+                
+                    ApplySticker(false, 4);
                 }else {
                     let stickerinfo = stickerslist.find(sticker => sticker.id == stickersaved[0]);
 
                     stickerselem.children[4].dataset.id = stickersaved[0];
                     stickerselem.children[4].title = stickerinfo.name;
                     stickerselem.children[4].innerHTML = `<img src="${stickerinfo.image}">`;
+                
+                    ApplySticker(false, 4);
                 }
             }
         }

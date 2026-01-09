@@ -11,6 +11,62 @@ array_shift($langs);
 if(isset($_POST['generate'])) {
 
 try {
+
+if(urlexists('https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/skins_'.$_POST['translation'].'.json')) {
+    $agents = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/agents_'.$_POST['translation'].'.json';
+    $gloves = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/gloves_'.$_POST['translation'].'.json';
+    $keychains = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/keychains_'.$_POST['translation'].'.json';
+    $music = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/music_'.$_POST['translation'].'.json';
+    $skins = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/skins_'.$_POST['translation'].'.json';
+    $stickers = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/stickers_'.$_POST['translation'].'.json';
+}else {
+    $agents = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/agents_en.json';
+    $gloves = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/gloves_en.json';
+    $keychains = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/keychains_en.json';
+    $music = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/music_en.json';
+    $skins = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/skins_en.json';
+    $stickers = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/refs/heads/main/website/data/stickers_en.json';
+}
+
+$agentsjson = json_decode(file_get_contents($agents));
+$agentsjson[0]->image = "https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/agents/t_agent_default.png";
+$agentsjson[0]->model = "default";
+$agentsjson[0]->agent_name = "Default Agent | Default";
+
+$agentsjson[1]->image = "https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/refs/heads/main/src/agents/ct_agent_default.png";
+$agentsjson[1]->model = "default";
+$agentsjson[1]->agent_name = "Default Agent | Default";
+
+$glovesjson = json_decode(file_get_contents($gloves));
+$glovesjson[0]->weapon_defindex = 'gloves_default';
+$glovesjson[0]->paint = 't';
+$glovesjson[0]->image = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/main/src/gloves/default_t.png';
+
+$ctGlove = new stdClass();
+$ctGlove->weapon_defindex = 'gloves_default';
+$ctGlove->paint = 'ct';
+$ctGlove->image = 'https://raw.githubusercontent.com/LielXD/CS2-WeaponPaints-Website/main/src/gloves/default_ct.webp';
+$ctGlove->paint_name = 'Default Gloves | Counter-Terrorist Default';
+
+$skinsjson = json_decode(file_get_contents($skins));
+
+$defaultknife = new stdClass();
+$defaultknife->weapon_defindex = 'weapon_knife_default';
+$defaultknife->weapon_name = 'weapon_knife_default';
+$defaultknife->paint = 'default';
+$defaultknife->image = 'https://raw.githubusercontent.com/Nereziel/cs2-WeaponPaints/main/website/img/skins/weapon_knife.png';
+$defaultknife->paint_name = 'Default Knife | Default';
+$defaultknife->legacy_model = false;
+
+array_unshift($skinsjson, $defaultknife);
+
+file_put_contents('./src/data/agents.json', json_encode($agentsjson));
+file_put_contents('./src/data/gloves.json', json_encode($glovesjson));
+file_put_contents('./src/data/keychains.json', file_get_contents($keychains));
+file_put_contents('./src/data/music.json', file_get_contents($music));
+file_put_contents('./src/data/skins.json', json_encode($skinsjson));
+file_put_contents('./src/data/stickers.json', file_get_contents($stickers));
+
 if($_POST['color'] == 'random') {$_POST['color'] = true;}else {$_POST['color'] = '"'.$_POST['color'].'"';}
 
 file_put_contents('./config.php', '<?php
@@ -54,14 +110,17 @@ $DatabaseInfo = [
 ];
 ');
 
-
 }catch(Exception $err) {
     echo $err->getMessage();
 }
 
-
 exit;
 
+}
+
+function urlexists($url){
+   $headers = get_headers($url);
+   return stripos($headers[0], "200 OK") ? true:false;
 }
 
 ?>
@@ -81,6 +140,9 @@ exit;
             flex-direction: column;
             justify-content: flex-start;
             align-items: flex-start;
+            min-height: 100vh;
+            min-height: 100dvh;
+            height: fit-content;
         }
 
         .wrapperbox {
@@ -89,9 +151,10 @@ exit;
             justify-content: space-around;
             align-items: center;
             width: 100%;
-            height: 100%;
+            min-height: 100dvh;
             padding: 50px;
             flex-wrap: wrap;
+            gap: 100px;
         }
 
         .title-conf {
@@ -100,7 +163,6 @@ exit;
             gap: 10px;
             color: rgba(255, 255, 255, 0.6);
             font-size: clamp(20px, 3vw, 25px);
-            white-space: nowrap;
         }
         .title-conf h2 {
             color: var(--main-color);
@@ -108,6 +170,20 @@ exit;
             padding: 5px 20px;
             border-radius: 5px;
             font-size: clamp(30px, 7vw, 60px);
+        }
+        .title-conf ul {
+            max-width: 700px;
+            font-size: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+
+            background: #ffffff25;
+            backdrop-filter: blur(10px);
+            padding: 20px 50px;
+            border-radius: 10px;
+
+            margin-top: 50px;
         }
 
         form {
@@ -141,7 +217,16 @@ exit;
 <div class="wrapperbox">
     <div class="title-conf">
         <h2>LielXD Weaponpaints</h2>
-        <p>setup website</p>
+        <p>Setup Website</p>
+        <ul>
+            <li>To create the website enter your preferred settings and then credentials
+                <br>for a working database.</li>
+            <li>If there is an update to CS2 and there are new skins
+            <br>please remove the file `config.php`, You will have this screen again
+            <br>select your settings and type your credentials again
+            <br>then the website will auto update the new skins.</li>
+        </ul>
+        
     </div>
     <form method="post" name="settings">
         <div class="input">

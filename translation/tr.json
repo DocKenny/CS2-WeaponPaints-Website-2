@@ -70,7 +70,7 @@
             }
         },
         "footer": {
-            "signedin": "{{name}}<br>olarak giriş yaptınız.",
+            "signedin": "{{name}}<br>plarak giriş yaptınız.",
             "sign_out": "Çıkış yap",
             "settings": {
                 "language": "Dil",

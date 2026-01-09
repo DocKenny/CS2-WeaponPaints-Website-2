@@ -16,7 +16,13 @@
             {"name": "CS2.LIELXD.COM", "hover": "היכנסו לשרת הסארף", "link": "steam://connect/34.165.48.66:27016?appid=730"}
         ],
         "footer": "בבקשה התחברו דרך Steam בכדי להמשיך.",
-        "button": "התחברות עם Steam"
+        "button": "התחברות עם Steam",
+        "authorize": {
+            "label": "בכדי להמשיך התחבר עם Steam64ID",
+            "sublabel": "התחברות עם Steam, אינה אפשרית כרגע",
+            "input": "SteamID",
+            "button": "התחברות עם Steam64ID"
+        }
     },
     "skins": {
         "choose_weapon": "בחר {{label}}",

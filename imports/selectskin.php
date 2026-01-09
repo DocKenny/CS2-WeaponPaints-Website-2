@@ -142,6 +142,13 @@ switch($selectedweapon_type) {
             array_push($weapon_info['img'], $current_ct->image);
         }
 
+        if(empty($weapon_info['name'])) {
+            $weapon_info['name'] = $songs[0]->name;
+        }
+        if(empty($weapon_info['img'])) {
+            $weapon_info['img'] = [$songs[0]->image];
+        }
+
         break;
     case 'agents':
         $state = $pdo->prepare("SELECT * FROM `wp_player_agents` WHERE `steamid` = ?");
@@ -209,7 +216,6 @@ switch($selectedweapon_type) {
                 }
             }
         }
-
 
         foreach($savedskins as $saved) {
             if($saved['weapon_team'] == 2) {

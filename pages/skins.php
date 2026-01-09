@@ -154,7 +154,8 @@ if($Website_TeamOnlyWeapons) {
         'weapon_fiveseven',
         'weapon_famas',
         'weapon_scar20',
-        'weapon_mp9'
+        'weapon_mp9',
+        'weapon_hkp2000'
     ];
     
     $t_only = [

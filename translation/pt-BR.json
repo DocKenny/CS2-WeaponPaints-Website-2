@@ -12,23 +12,23 @@
     "login": {
         "header": "Counter Strike 2 Server - Conecte-se agora:",
         "titles": [
-            {"name": "CS2.LIELXD.COM", "hover": "Conecte-se ao servidor de retake", "link": "steam://connect/34.165.48.66:27015?appid=730"},
-            {"name": "CS2.LIELXD.COM", "hover": "Conecte-se ao servidor de surf", "link": "steam://connect/34.165.48.66:27016?appid=730"}
+            {"name": "CS2.LIELXD.COM", "hover": "Conecte-se ao servidor retake", "link": "steam://connect/34.165.48.66:27015?appid=730"},
+            {"name": "CS2.LIELXD.COM", "hover": "Conecte-se ao servidor surf", "link": "steam://connect/34.165.48.66:27016?appid=730"}
         ],
-        "footer": "conecte-se usando a Steam para continuar.",
+        "footer": "faça login através da Steam para continuar.",
         "button": "Entrar com a Steam"
     },
     "skins": {
         "choose_weapon": "Escolha sua {{label}}",
-        "choose_weapon_default": "Arma",
+        "choose_weapon_default": "arma",
         "categories": {
-            "knifes": "Facas",
-            "pistols": "Pistolas",
+            "knifes": "Knives",
+            "pistols": "Pistols",
             "rifles": "Rifles",
-            "smg": "Submetralhadoras",
-            "machine_guns": "Metralhadoras",
-            "sniper_rifles": "Rifles de precisão",
-            "shotguns": "Escopetas",
+            "smg": "SMGs",
+            "machine_guns": "Machine Guns",
+            "sniper_rifles": "Sniper Rifles",
+            "shotguns": "Shotguns",
             "gloves": "Luvas",
             "agents": {
                 "label": "Agentes",
@@ -42,40 +42,40 @@
             "select_skin_label": "Escolha sua skin"
         },
         "view_skin": {
-            "title": "Personalizar",
-            "team": "Equipe",
+            "title": "Customize",
+            "team": "Team",
             "wear": {
-                "label": "Exterior",
-                "factory_new": "Nova de Fábrica",
-                "minimal_wear": "Pouco Usada",
-                "field_tested": "Testada em Campo",
-                "well_worn": "Bem desgastada",
-                "battle_scarred": "Veterana de Guerra",
-                "custom": "Personalizado"
+                "label": "Wear",
+                "factory_new": "Factory New",
+                "minimal_wear": "Minimal Wear",
+                "field_tested": "Field Tested",
+                "well_worn": "Well Worn",
+                "battle_scarred": "Battle Scarred",
+                "custom": "Custom"
             },
             "seed": "Seed",
-            "nametag": "Etiqueta de nome",
+            "nametag": "Name tag",
             "stattrak": {
-                "label": "StatTrak",
-                "label_kills": "Mortes"
+                "label": "Stattrak",
+                "label_kills": "Kills"
             },
-            "stickers": "Adesivos",
-            "keychains": "Chaveiros",
-            "select": "Selecionar",
-            "search": "Pesquisar",
+            "stickers": "Stickers",
+            "keychains": "Keychains",
+            "select": "Select",
+            "search": "Search",
             "apply": {
-                "terror": "Aplicar T",
-                "counterterror": "Aplicar CT"
+                "terror": "Apply T",
+                "counterterror": "Apply CT"
             }
         },
         "footer": {
             "signedin": "conectado como<br>{{name}}.",
-            "sign_out": "Sair",
+            "sign_out": "sair",
             "settings": {
-                "language": "Linguagem",
+                "language": "linguagem",
                 "theme": {
                     "label": "Tema",
-                    "custom": "Cor personalizada",
+                    "custom": "Cor customizada",
                     "choose": "Escolha a cor"
                 }
             }

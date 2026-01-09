@@ -307,14 +307,14 @@ if($Website_UseCategories) {
 
                     ?>
                     <li>
-                        <button class='card <?= !$gloves_selected_ct && $glove->weapon_defindex == 'gloves_default' || !$gloves_selected_t && $glove->weapon_defindex == 'gloves_default'?'selected':''; ?>' data-action='weapon_picked' data-weapon='<?= $glove->weapon_defindex; ?>'>
+                        <button class='card <?= !$gloves_selected_ct && $glove->weapon_defindex === "gloves_default" || !$gloves_selected_t && $glove->weapon_defindex === "gloves_default"?'selected':''; ?>' data-action='weapon_picked' data-weapon='<?= $glove->weapon_defindex; ?>'>
                             <div class="imgbox">
                                 <img src="<?= $glove->image; ?>" loading='lazy'>
                             </div>
                             <span><?= explode(' | ', $glove->paint_name)[0]; ?></span>
                             <div class="marks">
                                 <?php
-                                if($glove->weapon_defindex == 'gloves_default') {
+                                if($glove->weapon_defindex === "gloves_default") {
                                     if(!$gloves_selected_t) {
                                         ?>
                                         <input type="radio" name="marks_<?= $glove->weapon_defindex; ?>" class="terrormark" checked>
