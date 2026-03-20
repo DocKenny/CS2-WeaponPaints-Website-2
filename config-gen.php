@@ -1,6 +1,6 @@
 <?php
 
-if(file_exists('./config.php')) {
+if(file_exists('./src/data/config.php')) {
     exit;
 }
 
@@ -69,7 +69,7 @@ file_put_contents('./src/data/stickers.json', file_get_contents($stickers));
 
 if($_POST['color'] == 'random') {$_POST['color'] = true;}else {$_POST['color'] = '"'.$_POST['color'].'"';}
 
-file_put_contents('./config.php', '<?php
+file_put_contents('./src/data/config.php', '<?php
 
 // Choose your translate file name located in translation/filename.json
 // You can add your own translation.
@@ -376,7 +376,7 @@ function urlexists($url){
 
             formdata.set('generate', true);
 
-            fetch('./config-gen.php', {
+            fetch('./src/data/config-gen.php', {
                 method: 'post',
                 body: formdata
             }).then(resp => resp.text()).then(resp => {

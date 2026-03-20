@@ -34,7 +34,7 @@ function GetPrefix() {
 /* Config setup */
 /****************/
 
-if(!file_exists('./config.php')) {
+if(!file_exists('./src/data/config.php')) {
     if(file_exists('./config-gen.php')) {
         include_once './config-gen.php';
     }else {
@@ -44,7 +44,7 @@ if(!file_exists('./config.php')) {
     exit;
 }
 
-include_once './config.php';
+include_once './src/data/config.php';
 
 if($Website_Settings['language'] && isset($_COOKIE['cs2weaponpaints_lielxd_language'])
 && file_exists(realpath("./translation/".$_COOKIE['cs2weaponpaints_lielxd_language'].".json"))) {
