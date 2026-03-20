@@ -1,14 +1,5 @@
-[phases.setup]
-nixPkgs = ["php83.withExtensions ({ extensions, ... }: extensions ++ [ \"curl\" \"pdo_mysql\" ])", "nginx", "libmysqlclient"]
-
 [phases.install]
 cmds = [
   "mkdir -p /var/log/nginx && mkdir -p /var/cache/nginx",
   "chmod -R 777 /app/src/data"
-]
-
-[phases.start]
-cmds = [
-  "node /assets/scripts/prestart.mjs /assets/nginx.template.conf /nginx.conf",
-  "php-fpm -y /assets/php-fpm.conf & nginx -c /nginx.conf"
 ]
