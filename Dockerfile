@@ -1,17 +1,22 @@
-# Use the official Nixpacks Ubuntu base (same as Dokploy uses)
+# Use the official Nixpacks Ubuntu base
 FROM ghcr.io/railwayapp/nixpacks:ubuntu-1745885067
 
-# Set the working directory
 WORKDIR /app
 
-# Copy the entire application (the build context will be filtered by .dockerignore)
+# Copy the application
 COPY . .
 
-# Make the whole application writable by the user that will run PHP (uid 1000)
+# Fix ownership and permissions
 RUN chown -R 1000:1000 /app && chmod -R 775 /app
 
 # Switch to the non‑root user
 USER 1000
 
-# Use the default Nixpacks start command
-CMD ["/bin/bash", "-c", "node /assets/scripts/prestart.mjs /assets/nginx.template.conf /nginx.conf && (php-fpm -y /assets/php-fpm.conf & nginx -c /nginx.conf)"]
+# Create a startup script that keeps the container running
+RUN echo '#!/bin/bash\n\
+node /assets/scripts/prestart.mjs /assets/nginx.template.conf /nginx.conf\n\
+php-fpm -y /assets/php-fpm.conf &\n\
+nginx -c /nginx.conf\n\
+wait' > /start.sh && chmod +x /start.sh
+
+CMD ["/start.sh"]
