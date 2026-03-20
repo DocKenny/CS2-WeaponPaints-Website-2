@@ -1,7 +1,3 @@
--------
-# SUPPORT ISRAEL 🤍💙
--------
-
 ## Preview Website
 link => https://cs2.lielxd.com/
 
