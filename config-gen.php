@@ -376,7 +376,7 @@ function urlexists($url){
 
             formdata.set('generate', true);
 
-            fetch('./src/data/config-gen.php', {
+            fetch('./config-gen.php', {
                 method: 'post',
                 body: formdata
             }).then(resp => resp.text()).then(resp => {
