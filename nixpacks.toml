@@ -8,6 +8,5 @@ cmds = [
 cmds = [
   "node /assets/scripts/prestart.mjs /assets/nginx.template.conf /nginx.conf",
   "sed -i 's|root /app/public;|root /app;|' /nginx.conf",
-  "sed -i '/location \\/ {/a \\    try_files $uri /index.php?path=$uri&$args;' /nginx.conf",
   "php-fpm -y /assets/php-fpm.conf & nginx -c /nginx.conf"
 ]
