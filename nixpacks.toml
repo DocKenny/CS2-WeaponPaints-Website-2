@@ -5,4 +5,4 @@ cmds = [
 ]
 
 [start]
-cmd = "php-fpm -D && nginx -g 'daemon off;'"
+cmd = "bash /app/start.sh"
